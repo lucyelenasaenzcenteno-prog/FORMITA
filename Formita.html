@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafío Matemático 2° Secundaria</title>
+    <!-- Carga de Tailwind CSS para un diseño moderno y responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuración personalizada de Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#4f46e5', // Indigo 600
+                        'secondary': '#10b981', // Emerald 500
+                        'accent': '#f97316', // Orange 500
+                        'correct': '#10b981', // Emerald 500
+                        'incorrect': '#ef4444', // Red 500
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos personalizados para Drag and Drop */
+        .card-option {
+            cursor: grab;
+            transition: all 0.2s;
+        }
+
+        .card-option:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .drop-target-hover {
+            border-color: #f97316 !important;
+            background-color: #fff7ed !important; /* Orange 50 */
+        }
+
+        .drop-target.correct-drop {
+            border-color: #10b981 !important;
+            background-color: #ecfdf5 !important; /* Emerald 50 */
+        }
+
+        .drop-target.incorrect-drop {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important; /* Red 50 */
+        }
+
+        /* Ocultar elementos en el feedback para una transición limpia */
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Ocultar el scrollbar en algunos navegadores */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        /* Estilo específico para la ilustración de la imagen */
+        #situation-illustration img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        /* Estilo para el placeholder de la imagen cargada por el usuario */
+        .image-placeholder-box {
+            background-color: #e0f2f1;
+            border: 2px dashed #00bfa5;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            color: #00796b;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <div id="game-container" class="bg-white shadow-2xl rounded-xl w-full max-w-4xl p-6 md:p-10 transform transition-all duration-500">
+        
+        <!-- Header del Juego -->
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl font-extrabold text-primary mb-1">📐 Desafío Matemático 🚀</h1>
+            <p class="text-lg text-gray-600">Segundo Grado de Secundaria (ECE)</p>
+            <div id="progress" class="mt-4 h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div id="progress-bar" class="h-full bg-secondary transition-all duration-300 ease-in-out" style="width: 0%;"></div>
+            </div>
+            <p id="question-count" class="text-sm mt-1 text-gray-500"></p>
+        </header>
+
+        <!-- Área de Pregunta y Situación -->
+        <div id="quiz-area" class="transition-opacity duration-300">
+            <div class="bg-indigo-50 p-4 md:p-6 rounded-lg mb-6 border-l-4 border-primary">
+                <p id="situation-topic" class="text-sm font-semibold text-primary uppercase mb-1"></p>
+                <div id="situation-illustration" class="text-5xl mb-3 text-center">
+                    <!-- Aquí se cargará el emoji o la imagen -->
+                </div>
+                <p id="situation-text" class="text-gray-700 mb-4 italic"></p>
+                <h2 id="question-text" class="text-xl md:text-2xl font-bold text-gray-800"></h2>
+            </div>
+
+            <!-- Zona de Arrastre (Drop Target) -->
+            <div class="mb-8 p-4 md:p-6 border-4 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center min-h-[100px] transition-colors duration-300 drop-target" 
+                 id="drop-target"
+                 ondragover="allowDrop(event)" 
+                 ondrop="handleDrop(event)">
+                <p id="drop-placeholder" class="text-lg text-gray-500 font-semibold">Arrastra aquí la tarjeta con la respuesta correcta</p>
+            </div>
+
+            <!-- Opciones de Respuesta (Draggable Cards) -->
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Las tarjetas de opciones se insertarán aquí por JavaScript -->
+            </div>
+        </div>
+        
+        <!-- Área de Resultados y Feedback (Inicialmente oculta) -->
+        <div id="feedback-area" class="mt-6 p-6 rounded-lg shadow-inner hidden">
+            <!-- El feedback se insertará aquí -->
+        </div>
+
+        <div id="results-area" class="hidden text-center mt-10 p-8 bg-primary rounded-xl shadow-lg">
+            <h2 class="text-4xl font-extrabold text-white mb-4">¡Juego Terminado! 🎉</h2>
+            <p id="final-score" class="text-3xl text-white font-semibold mb-6"></p>
+            <button onclick="startGame()" class="bg-accent hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105">
+                Volver a Jugar
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Definición de las 10 situaciones (ítems tipo ECE)
+        const QUIZ_DATA = [
+            {
+                id: 1,
+                topic: "Coordenadas Cartesianas (Traslación)",
+                illustration: "🗺️",
+                situation: "Julián usa un mapa de la escuela con un sistema de coordenadas. La biblioteca está en la posición (2, 3). Su profesor le pide moverla 4 unidades a la derecha y 1 unidad hacia arriba en el plano.",
+                question: "¿Cuál es la nueva coordenada de la biblioteca después de la traslación?",
+                correctAnswer: "(6, 4)",
+                options: ["(4, 3)", "(2, 4)", "(6, 4)", "(5, 7)"],
+                feedbackCorrect: "¡Correcto! Una traslación de (x + 4, y + 1) en (2, 3) resulta en (2+4, 3+1) = (6, 4).",
+                feedbackIncorrect: "Incorrecto. Recuerda que 'a la derecha' suma a 'x' y 'hacia arriba' suma a 'y'. (2+4, 3+1).",
+            },
+            {
+                id: 2,
+                topic: "Área de Polígonos (Situación Cotidiana)",
+                illustration: "🌳",
+                situation: "La mamá de Andrea tiene un jardín rectangular de 8 metros de largo por 5 metros de ancho. Quiere cubrir exactamente la mitad del jardín con césped y el resto con baldosas.",
+                question: "¿Cuántos metros cuadrados de césped necesitará?",
+                correctAnswer: "20 m²",
+                options: ["40 m²", "13 m²", "26 m²", "20 m²"],
+                feedbackCorrect: "¡Excelente! El área total es 8m * 5m = 40 m². La mitad es 40 / 2 = 20 m².",
+                feedbackIncorrect: "Incorrecto. Primero calcula el área total (largo x ancho) y luego divídela entre 2, ya que solo quiere cubrir la mitad.",
+            },
+            {
+                id: 3,
+                topic: "Volumen de Prismas (Conversión de Unidades)",
+                illustration: "🥤",
+                situation: "En la tienda escolar venden jugo en una caja que tiene forma de prisma rectangular con medidas internas de 10 cm de largo, 5 cm de ancho y 20 cm de alto.",
+                question: "¿Cuántos mililitros (mL) de jugo contiene la caja?",
+                correctAnswer: "1000 mL",
+                options: ["100 mL", "35 mL", "1000 mL", "350 mL"],
+                feedbackCorrect: "¡Así es! Volumen = 10*5*20 = 1000 cm³. Como 1 cm³ = 1 mL, contiene 1000 mL.",
+                feedbackIncorrect: "Incorrecto. El volumen es L*A*H = 1000 cm³. Recuerda que 1 cm³ equivale a 1 mL.",
+            },
+            {
+                id: 4,
+                topic: "Identificación de Transformación Geométrica",
+                // Usamos la imagen proporcionada por el usuario (la figura azul reflejada en verde)
+                illustration: "image_511c5c.png", 
+                situation: "Observa la figura original (azul) y la figura transformada (verde) en el plano cartesiano, separadas por una línea de puntos. La figura se ha 'volteado' simétricamente a través de esta línea.",
+                question: "¿Qué transformación geométrica se realizó en la figura?",
+                correctAnswer: "Reflexión",
+                options: ["Traslación", "Rotación", "Reflexión", "Homotecia"],
+                feedbackCorrect: "¡Correcto! La figura se ha 'volteado' sobre una línea, lo cual es una Reflexión. La forma y tamaño se mantienen, pero la orientación cambia.",
+                feedbackIncorrect: "Incorrecto. La figura cambió su orientación (se 'volteó'), lo que indica una Reflexión (o simetría), no una traslación o rotación.",
+            },
+            {
+                id: 5,
+                topic: "Escala en Mapas",
+                illustration: "📏",
+                situation: "Un mapa turístico indica que la escala es 1:5,000,000, lo que significa que 1 cm en el mapa representa 50 kilómetros (km) en la realidad. La distancia en el mapa entre dos ciudades es de 7 cm.",
+                question: "¿Cuál es la distancia real, en kilómetros, entre las dos ciudades?",
+                correctAnswer: "350 km",
+                options: ["50 km", "35 km", "500 km", "350 km"],
+                feedbackCorrect: "¡Correcto! Si 1 cm = 50 km, entonces 7 cm = 7 * 50 km = 350 km.",
+                feedbackIncorrect: "Incorrecto. Debes multiplicar la distancia en el mapa (7 cm) por la equivalencia real (50 km).",
+            },
+            {
+                id: 6,
+                topic: "Perímetro de Polígonos (Situación Cotidiana)",
+                illustration: "🚧",
+                situation: "Juan está construyendo un patio con forma de hexágono regular (6 lados iguales) en su casa. Cada lado del hexágono mide 3.5 metros. Necesita comprar una cerca decorativa para bordearlo.",
+                question: "¿Cuál es la longitud total de la cerca (perímetro) que necesita comprar?",
+                correctAnswer: "21 m",
+                options: ["10.5 m", "12.25 m", "21 m", "17.5 m"],
+                feedbackCorrect: "¡Muy bien! El perímetro de un hexágono regular es 6 veces la medida del lado: 6 * 3.5 m = 21 m.",
+                feedbackIncorrect: "Incorrecto. Un hexágono tiene 6 lados. El perímetro es la suma de las longitudes de todos los lados.",
+            },
+            {
+                id: 7,
+                topic: "Transformación (Rotación/Reloj)",
+                illustration: "⌚",
+                situation: "La manecilla de los minutos de un reloj se mueve desde las 12:00 hasta las 12:45. Recuerda que la manecilla se mueve en sentido horario.",
+                question: "¿Cuál fue el ángulo de rotación de la manecilla de los minutos?",
+                correctAnswer: "$$270^{\\circ}$$",
+                options: ["$$90^{\\circ}$$", "$$180^{\\circ}$$", "$$270^{\\circ}$$", "$$360^{\\circ}$$"],
+                feedbackCorrect: "¡Perfecto! En 45 minutos (3/4 de hora), la manecilla recorre $$3/4 \\times 360^{\\circ} = 270^{\\circ}$$.",
+                feedbackIncorrect: "Incorrecto. En 60 minutos hay $$360^{\\circ}$$. En 45 minutos recorre $$45/60 \\times 360^{\\circ}$$.",
+            },
+            {
+                id: 8,
+                topic: "Circunferencia (Situación Cotidiana)",
+                illustration: "🏃",
+                situation: "Una pista circular de atletismo tiene un radio de 10 metros. Un estudiante corre una vuelta completa para calentar. Usa $$\pi \\approx 3.14$$.",
+                question: "¿Aproximadamente qué distancia, en metros, recorrió el estudiante en una vuelta?",
+                correctAnswer: "62.8 metros",
+                options: ["31.4 metros", "100 metros", "62.8 metros", "20 metros"],
+                feedbackCorrect: "¡Correcto! La distancia es la circunferencia: $$C = 2\\pi r$$. $$C = 2 \\times 3.14 \\times 10 \\approx 62.8$$ metros.",
+                feedbackIncorrect: "Incorrecto. Debes calcular la circunferencia ($$2\\pi r$$), no el área ($$\\pi r^2$$) ni el radio/diámetro.",
+            },
+            {
+                id: 9,
+                topic: "Ampliación (Área y Escala)",
+                illustration: "🖼️",
+                situation: "Una fotógrafa tiene una imagen original que mide 10 cm de ancho por 15 cm de largo. Decide ampliarla para un póster, usando un factor de escala de 3.",
+                question: "¿Cuál será la nueva área total del póster, en $$cm^2$$?",
+                correctAnswer: "1350 $$cm^2$$",
+                options: ["150 $$cm^2$$", "450 $$cm^2$$", "1350 $$cm^2$$", "300 $$cm^2$$"],
+                feedbackCorrect: "¡Magnífico! El área se amplía por el cuadrado del factor de escala ($$3^2 = 9$$). Área original = 150 $$cm^2$$. Área nueva = $$150 \\times 9 = 1350$$ $$cm^2$$.",
+                feedbackIncorrect: "Incorrecto. El área se amplía por el factor de escala *al cuadrado* ($$k^2$$), no por el factor de escala lineal ($$k$$).",
+            },
+            {
+                id: 10,
+                topic: "Área de Figuras Compuestas",
+                illustration: "🏊",
+                situation: "En un club, una piscina rectangular de 10 m de largo por 4 m de ancho está rodeada por un deck de madera de 1 metro de ancho en todo su perímetro.",
+                question: "¿Cuál es el área total del deck de madera, en $$m^2$$?",
+                correctAnswer: "32 $$m^2$$",
+                options: ["40 $$m^2$$", "14 $$m^2$$", "56 $$m^2$$", "32 $$m^2$$"],
+                feedbackCorrect: "¡Excelente! El área total (piscina + deck) es $$ (10+2) \\times (4+2) = 12 \\times 6 = 72$$ $$m^2$$. El área de la piscina es $$10 \\times 4 = 40$$ $$m^2$$. Área del deck = $$72 - 40 = 32$$ $$m^2$$.",
+                feedbackIncorrect: "Incorrecto. El deck agrega 1m a cada lado. El rectángulo grande es de 12x6. Resta el área de la piscina ($$10 \\times 4$$) al área total ($$12 \\times 6$$).",
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isProcessing = false; // Bandera para evitar arrastrar mientras se muestra feedback
+        
+        const questionCountEl = document.getElementById('question-count');
+        const progressBarEl = document.getElementById('progress-bar');
+        const quizAreaEl = document.getElementById('quiz-area');
+        const resultsAreaEl = document.getElementById('results-area');
+        const feedbackAreaEl = document.getElementById('feedback-area');
+        const dropTargetEl = document.getElementById('drop-target');
+        const illustrationEl = document.getElementById('situation-illustration');
+
+        // --- Funciones de Drag and Drop ---
+
+        /**
+         * Inicializa el arrastre guardando la respuesta en el objeto de datos del evento.
+         * @param {DragEvent} ev 
+         */
+        function startDrag(ev) {
+            if (isProcessing) return;
+            ev.dataTransfer.setData("text", ev.target.innerText);
+            ev.target.classList.add('opacity-50', 'ring-4', 'ring-accent');
+        }
+
+        /**
+         * Permite que un elemento sea soltado sobre el target.
+         * @param {DragEvent} ev 
+         */
+        function allowDrop(ev) {
+            ev.preventDefault();
+            if (!isProcessing) {
+                dropTargetEl.classList.add('drop-target-hover');
+            }
+        }
+
+        /**
+         * Quita el estilo de hover cuando el arrastre sale del target.
+         * @param {DragEvent} ev 
+         */
+        function dragLeave(ev) {
+            dropTargetEl.classList.remove('drop-target-hover');
+        }
+        
+        /**
+         * Maneja la acción de soltar y verifica la respuesta.
+         * @param {DragEvent} ev 
+         */
+        function handleDrop(ev) {
+            ev.preventDefault();
+            dropTargetEl.classList.remove('drop-target-hover');
+
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const droppedAnswer = ev.dataTransfer.getData("text").trim();
+            const currentQuestion = QUIZ_DATA[currentQuestionIndex];
+            // Para las respuestas con LaTeX, debemos limpiar la respuesta antes de comparar
+            const normalizedDroppedAnswer = droppedAnswer.replace(/\s+/g, ' ').trim();
+            const normalizedCorrectAnswer = currentQuestion.correctAnswer.replace(/\s+/g, ' ').trim();
+            
+            const isCorrect = normalizedDroppedAnswer === normalizedCorrectAnswer;
+            
+            // Coloca la tarjeta en la caja
+            document.getElementById('drop-placeholder').innerHTML = `<p class="text-xl font-bold">${droppedAnswer}</p>`;
+            document.getElementById('options-container').querySelectorAll('.card-option').forEach(card => card.classList.add('hidden'));
+
+            if (isCorrect) {
+                score++;
+                dropTargetEl.classList.add('correct-drop', 'shadow-lg');
+                showFeedback(true, currentQuestion.feedbackCorrect);
+            } else {
+                dropTargetEl.classList.add('incorrect-drop', 'shadow-lg');
+                showFeedback(false, currentQuestion.feedbackIncorrect);
+            }
+
+            // Esperar, mostrar feedback y luego cargar la siguiente pregunta
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < QUIZ_DATA.length) {
+                    loadQuestion();
+                } else {
+                    showResults();
+                }
+            }, 3000); // 3 segundos para leer el feedback
+        }
+
+        // --- Funciones de Lógica del Juego ---
+
+        /**
+         * Muestra el feedback de la respuesta.
+         * @param {boolean} isCorrect 
+         * @param {string} feedbackText 
+         */
+        function showFeedback(isCorrect, feedbackText) {
+            feedbackAreaEl.classList.remove('hidden');
+            
+            const color = isCorrect ? 'correct' : 'incorrect';
+            const icon = isCorrect ? '✅' : '❌';
+            const title = isCorrect ? '¡Respuesta Correcta!' : 'Respuesta Incorrecta';
+
+            feedbackAreaEl.innerHTML = `
+                <div class="fade-in flex items-start p-4 bg-${color}-100 rounded-lg border-l-4 border-${color}-500">
+                    <span class="text-3xl mr-4">${icon}</span>
+                    <div>
+                        <p class="text-xl font-bold text-${color}-700 mb-1">${title}</p>
+                        <p class="text-gray-700">${feedbackText}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Carga la pregunta actual en la interfaz.
+         */
+        function loadQuestion() {
+            isProcessing = false;
+            
+            // Actualizar barra de progreso y contador
+            const progress = (currentQuestionIndex / QUIZ_DATA.length) * 100;
+            progressBarEl.style.width = `${progress}%`;
+            questionCountEl.textContent = `Pregunta ${currentQuestionIndex + 1} de ${QUIZ_DATA.length}`;
+
+            // Resetear interfaz
+            dropTargetEl.classList.remove('correct-drop', 'incorrect-drop', 'shadow-lg');
+            dropTargetEl.classList.add('border-gray-300');
+            document.getElementById('drop-placeholder').textContent = 'Arrastra aquí la tarjeta con la respuesta correcta';
+            feedbackAreaEl.classList.add('hidden');
+            quizAreaEl.classList.remove('hidden');
+            resultsAreaEl.classList.add('hidden');
+            
+            // Cargar datos de la pregunta
+            const currentQuestion = QUIZ_DATA[currentQuestionIndex];
+            document.getElementById('situation-topic').textContent = currentQuestion.topic;
+            document.getElementById('situation-text').textContent = currentQuestion.situation;
+            document.getElementById('question-text').textContent = currentQuestion.question;
+
+            // --- Lógica de Ilustración (Emoji vs. Imagen) ---
+            const illustration = currentQuestion.illustration;
+            if (illustration === 'image_511c5c.png') {
+                // Placeholder para la imagen de reflexión subida por el usuario
+                 illustrationEl.innerHTML = `
+                    <div class="image-placeholder-box">
+                        <p>Ilustración (Reflexión sobre Eje Y)</p>
+                        <p class="text-sm font-normal mt-1">
+                            (Imaginar figura azul y figura verde reflejadas simétricamente, como en la imagen subida).
+                        </p>
+                    </div>
+                `;
+            } else if (illustration.startsWith('http')) {
+                // Si es una URL (usamos placeholder para la ilustración geométrica)
+                illustrationEl.innerHTML = `<img src="${illustration}" alt="Ilustración geométrica" onerror="this.onerror=null; this.src='https://placehold.co/400x150/cccccc/000000?text=Error+al+cargar+imagen';" class="max-w-xs md:max-w-md">`;
+            } else {
+                // Si es un emoji
+                illustrationEl.innerHTML = `<p class="text-5xl">${illustration}</p>`;
+            }
+            // --------------------------------------------------
+
+            // Barajar y cargar opciones
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            
+            // Copia de opciones para barajar
+            const shuffledOptions = [...currentQuestion.options].sort(() => Math.random() - 0.5);
+
+            shuffledOptions.forEach(option => {
+                const card = document.createElement('div');
+                card.className = "card-option bg-white p-4 rounded-lg shadow-md border-2 border-primary text-lg font-semibold text-gray-800 text-center select-none";
+                card.setAttribute('draggable', 'true');
+                card.setAttribute('ondragstart', 'startDrag(event)');
+                card.setAttribute('ondragend', 'event.target.classList.remove("opacity-50", "ring-4", "ring-accent")');
+                card.innerHTML = `<p>${option}</p>`; // Usamos innerHTML para permitir que el texto contenga notación LaTeX
+                optionsContainer.appendChild(card);
+            });
+        }
+
+        /**
+         * Muestra la pantalla de resultados finales.
+         */
+        function showResults() {
+            quizAreaEl.classList.add('hidden');
+            feedbackAreaEl.classList.add('hidden');
+            progressBarEl.style.width = '100%';
+            questionCountEl.textContent = `Puntuación final`;
+
+            document.getElementById('final-score').textContent = `Obtuviste ${score} de ${QUIZ_DATA.length} respuestas correctas.`;
+            resultsAreaEl.classList.remove('hidden');
+        }
+        
+        /**
+         * Inicia el juego.
+         */
+        function startGame() {
+            currentQuestionIndex = 0;
+            score = 0;
+            resultsAreaEl.classList.add('hidden');
+            loadQuestion();
+        }
+
+        // Configuración para el evento dragleave
+        document.getElementById('drop-target').addEventListener('dragleave', dragLeave);
+
+        // Inicializar el juego al cargar la página
+        window.onload = startGame;
+    </script>
+</body>
+</html>
