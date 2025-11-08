@@ -1,0 +1,444 @@
+
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafío Matemático ECE - Secundaria</title>
+    <!-- Carga de Tailwind CSS (solo se requiere conexión para esta carga inicial, luego funciona sin conexión) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Tipografía clara y colores amigables */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Azul muy claro */
+            min-height: 100vh;
+        }
+        /* Estilo base para tarjetas arrastrables */
+        .draggable-card {
+            cursor: grab;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            user-select: none;
+        }
+        .draggable-card:active {
+            cursor: grabbing;
+        }
+        /* Estilo para la zona de soltado */
+        #drop-zone {
+            border: 3px dashed #93c5fd; /* Borde azul claro */
+            min-height: 8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        #drop-zone.hover {
+            border-color: #3b82f6; /* Azul más oscuro al pasar el ratón */
+            background-color: #eff6ff; /* Fondo muy claro al pasar el ratón */
+        }
+        /* Clases de feedback */
+        .feedback-correct {
+            background-color: #d1fae5; /* Verde muy claro */
+            border-color: #10b981; /* Verde esmeralda */
+        }
+        .feedback-incorrect {
+            background-color: #fee2e2; /* Rojo muy claro */
+            border-color: #ef4444; /* Rojo fuerte */
+        }
+        .correct-answer-color {
+            background-color: #10b981;
+            color: white;
+            animation: pulse-green 1s 3;
+        }
+        .incorrect-answer-color {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        /* Animación para resaltar la respuesta correcta */
+        @keyframes pulse-green {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex items-center justify-center">
+
+    <div id="game-container" class="w-full max-w-4xl bg-white rounded-xl shadow-2xl p-6 md:p-10">
+
+        <!-- Encabezado y Marcador -->
+        <header class="mb-8 border-b pb-4 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-800">🚀 COMPETENCIA RESUELVE PROBLEMAS DE CANTIDAD</h1>
+            <div class="flex flex-col items-end">
+                <div id="score-display" class="text-xl font-semibold text-blue-600">Puntaje: 0 / 10</div>
+                <div id="problem-counter" class="text-sm text-gray-500">Problema 1 de 10</div>
+            </div>
+        </header>
+
+        <!-- Sección Principal del Problema -->
+        <main id="problem-area" class="space-y-6">
+            
+            <!-- 1. Escenario/Diálogo -->
+            <div id="scenario-box" class="p-5 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold text-gray-700 mb-3">Situación:</h2>
+                <p id="scenario-text" class="text-gray-900 text-lg leading-relaxed">Cargando situación...</p>
+            </div>
+
+            <!-- 2. Zona de Soltado (Drop Zone) -->
+            <div class="mt-8">
+                <h3 class="text-lg font-medium text-gray-600 mb-2">Arrastra la respuesta correcta al espacio:</h3>
+                <div id="drop-zone" 
+                    class="rounded-lg bg-gray-50 p-4 text-gray-500 font-semibold transition-colors"
+                    ondragover="allowDrop(event)" 
+                    ondrop="drop(event)">
+                    Suelta tu tarjeta de respuesta aquí
+                </div>
+            </div>
+
+            <!-- 3. Opciones de Respuesta -->
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                <!-- Tarjetas de opción se insertarán aquí por JavaScript -->
+            </div>
+            
+            <!-- 4. Retroalimentación -->
+            <div id="feedback-box" class="hidden mt-6 p-4 rounded-lg border-2" role="alert">
+                <p class="font-bold mb-1" id="feedback-title"></p>
+                <p id="feedback-text" class="text-sm"></p>
+                <button id="next-button" onclick="nextProblem()" 
+                    class="mt-3 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150 ease-in-out shadow-md"
+                    >Siguiente Problema →</button>
+            </div>
+        </main>
+
+        <!-- Modal de Fin del Juego -->
+        <div id="results-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-xl p-8 max-w-md w-full text-center shadow-2xl transform scale-95 transition-transform">
+                <h2 class="text-3xl font-bold text-blue-600 mb-4">🎉 ¡Desafío Completado!</h2>
+                <p class="text-lg text-gray-700 mb-6">Has terminado los 10 problemas. ¡Revisa tu desempeño!</p>
+                <div id="final-score" class="text-5xl font-extrabold text-green-600 mb-6"></div>
+                <button onclick="window.location.reload()" 
+                    class="w-full px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition duration-200">
+                    Volver a Jugar
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Configuración de datos del juego
+        const gameData = [
+            {
+                id: 1,
+                scenario: "Sofía quiere comprar una falda cuyo precio original es de S/ 80. La tienda está ofreciendo un descuento del 25% en todos sus artículos. Si Sofía solo tiene S/ 65, ¿podrá comprar la falda?",
+                question: "¿Cuál es el precio final de la falda después del descuento?",
+                correctAnswerId: "A",
+                options: [
+                    { id: "A", text: "60", isCorrect: true },
+                    { id: "B", text: "75", isCorrect: false },
+                    { id: "C", text: "55", isCorrect: false },
+                    { id: "D", text: "64", isCorrect: false }
+                ],
+                feedback: "¡Respuesta Correcta! El 25% de S/ 80 es S/ 20 (80 * 0.25). Por lo tanto, el precio final es S/ 80 - S/ 20 = S/ 60. Sofía sí podrá comprar la falda."
+            },
+            {
+                id: 2,
+                // CAMBIO: 2/5 a 2/6. Respuesta cambia de 1/10 a 1/12.
+                scenario: "En el cumpleaños de Juan, sobró una pizza. De la pizza original, quedan exactamente 2/6. Si Juan quiere dividir esta porción restante en partes iguales para sus 4 amigos, ¿qué fracción de la pizza original le tocará a cada amigo?",
+                question: "¿Qué fracción representa la porción individual?",
+                correctAnswerId: "C",
+                options: [
+                    { id: "A", text: "1/5", isCorrect: false },
+                    { id: "B", text: "2/9", isCorrect: false },
+                    { id: "C", text: "1/12", isCorrect: true }, // 2/6 / 4 = 2/24 = 1/12
+                    { id: "D", text: "8/5", isCorrect: false }
+                ],
+                feedback: "¡Respuesta Correcta! La operación es (2/6) $\\div$ 4. Dividir entre 4 es lo mismo que multiplicar por 1/4: (2/6) $\\times$ (1/4) = 2/24, que simplificado es 1/12."
+            },
+            {
+                // CAMBIO: "2 y 3" a "6". El resultado 36 se mantiene.
+                id: 3,
+                scenario: "El papá de Carlos está diseñando una nueva sala de estar cuadrada. El lado de la sala mide 6 metros. Él necesita saber el área total para comprar las baldosas.",
+                question: "¿Cuál es el área de la sala expresada en metros cuadrados?",
+                correctAnswerId: "B",
+                options: [
+                    { id: "A", text: "25", isCorrect: false },
+                    { id: "B", text: "36", isCorrect: true }, // Correcto: 6^2 = 36
+                    { id: "C", text: "49", isCorrect: false },
+                    { id: "D", text: "64", isCorrect: false }
+                ],
+                feedback: "¡Respuesta Correcta! El lado de la sala mide 6 metros. El área de un cuadrado es lado por lado: $6 \\times 6 = 36$ m$^2$."
+            },
+            {
+                id: 4,
+                scenario: "María tiene un presupuesto semanal de S/ 150.75 para víveres. Si gastó S/ 45.30 en frutas, S/ 28.90 en verduras y S/ 56.50 en abarrotes.",
+                question: "¿Cuánto dinero le queda del presupuesto semanal?",
+                correctAnswerId: "D",
+                options: [
+                    { id: "A", text: "20.05", isCorrect: false },
+                    { id: "B", text: "18.05", isCorrect: false },
+                    { id: "C", text: "19.55", isCorrect: false },
+                    { id: "D", text: "20.05", isCorrect: true } // 150.75 - 130.70 = 20.05
+                ],
+                feedback: "¡Respuesta Correcta! El gasto total es S/ 45.30 + S/ 28.90 + S/ 56.50 = S/ 130.70. El dinero restante es S/ 150.75 - S/ 130.70 = S/ 20.05."
+            },
+            {
+                id: 5,
+                scenario: "El precio de un videojuego es de $100. En el 'Black Friday' le aplican un descuento del 10%. Sin embargo, en la caja usan un cupón adicional que aplica un descuento del 10% sobre el precio ya rebajado.",
+                question: "¿Cuál es el descuento total efectivo (porcentaje) aplicado al precio original?",
+                correctAnswerId: "B",
+                options: [
+                    { id: "A", text: "20", isCorrect: false },
+                    { id: "B", text: "19", isCorrect: true },
+                    { id: "C", text: "19.5", isCorrect: false },
+                    { id: "D", text: "18", isCorrect: false }
+                ],
+                feedback: "¡Respuesta Correcta! Después del primer 10%, el precio queda en 90% (0.90 $\\times$ 100). El segundo 10% se aplica a ese 90% (0.90 $\\times$ 0.90 = 0.81). El precio final es el 81% del original, por lo que el descuento total es 100% - 81% = 19%."
+            },
+            {
+                id: 6,
+                scenario: "Un grupo de 3 amigos compra 4 galletas cada uno. Luego, 5 amigos más se unen y deciden repartir todas las galletas en partes iguales entre todos. ¿Cuántas galletas le tocará a cada persona al final?",
+                question: "¿Cuántas galletas recibe cada amigo?",
+                correctAnswerId: "D",
+                options: [
+                    { id: "A", text: "2", isCorrect: false },
+                    { id: "B", text: "1.75", isCorrect: false },
+                    { id: "C", text: "1.25", isCorrect: false },
+                    { id: "D", text: "1.5", isCorrect: true }
+                ],
+                feedback: "¡Respuesta Correcta! Inicialmente, hay $3 \\times 4 = 12$ galletas. El total de amigos es $3 + 5 = 8$. La división es $12 \\div 8 = 1.5$. Cada amigo recibe 1.5 galletas (o 3/2)."
+            },
+            {
+                id: 7,
+                scenario: "Un explorador parte de la cima de una montaña a 250 metros sobre el nivel del mar. Desciende 380 metros y luego sube 50 metros.",
+                question: "¿A qué altura (en metros) se encuentra ahora respecto al nivel del mar?",
+                correctAnswerId: "A",
+                options: [
+                    { id: "A", text: "-80", isCorrect: true },
+                    { id: "B", text: "180", isCorrect: false },
+                    { id: "C", text: "130", isCorrect: false },
+                    { id: "D", text: "-180", isCorrect: false }
+                ],
+                feedback: "¡Respuesta Correcta! Operación: $250 - 380 + 50$. Primero $250 - 380 = -130$ (bajo el nivel del mar). Luego sube $50$: $-130 + 50 = -80$ metros."
+            },
+            {
+                id: 8,
+                scenario: "Para hacer un pastel, Andrés necesita 3/4 de taza de azúcar y 1/2 taza de harina. Si mezcla ambos ingredientes.",
+                question: "¿Cuántas tazas de mezcla tiene en total?",
+                correctAnswerId: "D",
+                options: [
+                    { id: "A", text: "2/3", isCorrect: false },
+                    { id: "B", text: "1/4", isCorrect: false },
+                    { id: "C", text: "4/6", isCorrect: false },
+                    { id: "D", text: "5/4", isCorrect: true } // 5/4 es 1 y 1/4
+                ],
+                feedback: "¡Respuesta Correcta! Se suman las fracciones: 3/4 + 1/2. El común denominador es 4. 3/4 + 2/4 = 5/4. Cinco cuartos es igual a 1 taza y 1/4 de taza."
+            },
+            {
+                id: 9,
+                scenario: "Juana cobra S/ 15.50 por hora de trabajo. Si esta semana trabajó 6 días y cada día trabajó 3 horas, ¿cuánto dinero ganó en total?",
+                question: "¿Cuál fue el ingreso total de Juana esta semana?",
+                correctAnswerId: "C",
+                options: [
+                    { id: "A", text: "93.00", isCorrect: false },
+                    { id: "B", text: "186.00", isCorrect: false },
+                    { id: "C", text: "279.00", isCorrect: true },
+                    { id: "D", text: "300.00", isCorrect: false }
+                ],
+                feedback: "¡Respuesta Correcta! El total de horas trabajadas es 6 días x 3 horas/día = 18 horas. El ingreso total es 18 x 15.50 = S/ 279.00."
+            },
+            {
+                id: 10,
+                scenario: "En una piscina rectangular, el largo ($L$) es el doble del ancho ($A$). Si el ancho de la piscina es $A = 12$ metros.",
+                question: "¿Cuál es la expresión algebraica para calcular el perímetro de la piscina?",
+                correctAnswerId: "B",
+                options: [
+                    { id: "A", text: "$4A + L$", isCorrect: false },
+                    { id: "B", text: "$6A$", isCorrect: true },
+                    { id: "C", text: "$4L + 2A$", isCorrect: false },
+                    { id: "D", text: "$2A + L$", isCorrect: false }
+                ],
+                feedback: "¡Respuesta Correcta! El perímetro es $2L + 2A$. Sabemos que $L = 2A$. Sustituyendo: $2(2A) + 2A = 4A + 2A = 6A$. Si $A=12$, el perímetro es $6 \\times 12 = 72$ metros."
+            }
+        ];
+
+        let currentProblemIndex = 0;
+        let score = 0;
+        let answered = false;
+        
+        const problemArea = document.getElementById('problem-area');
+        const scenarioText = document.getElementById('scenario-text');
+        const problemCounter = document.getElementById('problem-counter');
+        const scoreDisplay = document.getElementById('score-display');
+        const optionsContainer = document.getElementById('options-container');
+        const dropZone = document.getElementById('drop-zone');
+        const feedbackBox = document.getElementById('feedback-box');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackText = document.getElementById('feedback-text');
+        const nextButton = document.getElementById('next-button');
+        const resultsModal = document.getElementById('results-modal');
+        const finalScore = document.getElementById('final-score');
+
+        // Función de utilidad para mezclar un array (Algoritmo Fisher-Yates)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function loadProblem(index) {
+            if (index >= gameData.length) {
+                showResults();
+                return;
+            }
+
+            const problem = gameData[index];
+            answered = false;
+
+            // Resetear UI
+            optionsContainer.innerHTML = '';
+            feedbackBox.classList.add('hidden');
+            dropZone.innerHTML = 'Suelta tu tarjeta de respuesta aquí';
+            dropZone.className = 'rounded-lg bg-gray-50 p-4 text-gray-500 font-semibold transition-colors'; // Resetear clases
+
+            // Actualizar textos
+            scenarioText.innerHTML = `
+                <p class="mb-2 italic">${problem.scenario}</p>
+                <p class="font-bold text-blue-700">${problem.question}</p>
+            `;
+            problemCounter.textContent = `Problema ${index + 1} de ${gameData.length}`;
+
+            // Mezclar y cargar opciones
+            const shuffledOptions = shuffleArray([...problem.options]);
+
+            shuffledOptions.forEach(option => {
+                const card = document.createElement('div');
+                card.id = `option-${option.id}`;
+                card.setAttribute('draggable', true);
+                card.setAttribute('data-answer-id', option.id);
+                card.setAttribute('data-is-correct', option.isCorrect);
+
+                card.className = 'draggable-card p-4 bg-white rounded-lg border-2 border-gray-200 text-center font-medium text-gray-800 hover:border-blue-400';
+                card.textContent = option.text;
+
+                card.addEventListener('dragstart', dragStart);
+                optionsContainer.appendChild(card);
+            });
+        }
+
+        // --- Lógica de Drag and Drop ---
+
+        function dragStart(event) {
+            if (answered) {
+                event.preventDefault(); // No permitir arrastrar si ya se respondió
+                return;
+            }
+            event.dataTransfer.setData("text/plain", event.target.id);
+            event.target.classList.add('opacity-50');
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+            if (!answered) {
+                dropZone.classList.add('hover');
+            }
+        }
+
+        function dragLeave(event) {
+            dropZone.classList.remove('hover');
+        }
+
+        dropZone.addEventListener('dragenter', allowDrop);
+        dropZone.addEventListener('dragleave', dragLeave);
+        
+        function drop(event) {
+            event.preventDefault();
+            dropZone.classList.remove('hover');
+            if (answered) return;
+
+            const data = event.dataTransfer.getData("text/plain");
+            const draggedElement = document.getElementById(data);
+            
+            // Mover la tarjeta arrastrada a la zona de soltado
+            dropZone.innerHTML = '';
+            dropZone.appendChild(draggedElement);
+            
+            // Eliminar la opacidad y re-centrar el contenido
+            draggedElement.classList.remove('opacity-50', 'hover:border-blue-400');
+            draggedElement.classList.add('w-full', 'h-full', 'flex', 'items-center', 'justify-center');
+            
+            checkAnswer(draggedElement);
+        }
+
+        // --- Lógica de Verificación y Retroalimentación ---
+
+        function checkAnswer(droppedElement) {
+            answered = true;
+            const currentProblem = gameData[currentProblemIndex];
+            const selectedId = droppedElement.getAttribute('data-answer-id');
+            const isCorrect = selectedId === currentProblem.correctAnswerId;
+
+            // Deshabilitar todas las opciones
+            Array.from(optionsContainer.children).forEach(card => {
+                card.setAttribute('draggable', false);
+                card.classList.remove('hover:border-blue-400');
+            });
+
+            // Mostrar el feedback
+            feedbackBox.classList.remove('hidden');
+            feedbackText.textContent = currentProblem.feedback;
+            nextButton.textContent = currentProblemIndex < gameData.length - 1 ? 'Siguiente Problema →' : 'Ver Resultados';
+
+            if (isCorrect) {
+                score++;
+                scoreDisplay.textContent = `Puntaje: ${score} / ${gameData.length}`;
+                
+                // Estilo para respuesta correcta
+                dropZone.classList.add('feedback-correct', 'border-green-500');
+                droppedElement.classList.add('correct-answer-color');
+                feedbackTitle.textContent = "¡Excelente! Respuesta Correcta.";
+                feedbackTitle.classList.remove('text-red-600');
+                feedbackTitle.classList.add('text-green-600');
+            } else {
+                // Estilo para respuesta incorrecta
+                dropZone.classList.add('feedback-incorrect', 'border-red-500');
+                droppedElement.classList.add('incorrect-answer-color');
+                feedbackTitle.textContent = "¡Incorrecto! Vuelve a revisar.";
+                feedbackTitle.classList.remove('text-green-600');
+                feedbackTitle.classList.add('text-red-600');
+
+                // Resaltar la respuesta correcta en el contenedor de opciones (si existe)
+                const correctOption = document.getElementById(`option-${currentProblem.correctAnswerId}`);
+                if (correctOption) {
+                    // Si el elemento correcto no fue dropeado, lo resaltamos en el contenedor original
+                    correctOption.classList.add('bg-green-200', 'border-green-500');
+                }
+            }
+        }
+
+        function nextProblem() {
+            currentProblemIndex++;
+            loadProblem(currentProblemIndex);
+        }
+
+        function showResults() {
+            finalScore.textContent = `${score} / ${gameData.length}`;
+            resultsModal.classList.remove('hidden');
+            problemArea.classList.add('hidden');
+            document.querySelector('header').classList.add('hidden');
+        }
+
+        // Inicialización del juego
+        function initGame() {
+            loadProblem(currentProblemIndex);
+        }
+
+        // Ejecutar al cargar la ventana
+        window.onload = initGame;
+
+    </script>
+</body>
+</html>

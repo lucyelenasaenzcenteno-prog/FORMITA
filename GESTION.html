@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMPETENCIA RESUELVE PROBLEMAS DE GESTION DE DATOS E INCERTIDUMBRE</title>
+    <!-- Carga de Tailwind CSS para un diseño moderno y responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos personalizados para la tipografía y el arrastre */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e0f2f1; /* Verde menta muy claro */
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .drag-card {
+            cursor: grab;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .drag-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+        }
+        .drag-card.dragging {
+            opacity: 0.5;
+        }
+        .drop-zone {
+            transition: border-color 0.2s, background-color 0.2s;
+            border: 4px dashed #3f51b5; /* Índigo */
+        }
+        .drop-zone.hovered {
+            background-color: #c5cae9; /* Índigo claro */
+            border-color: #1a237e; /* Índigo oscuro */
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <!-- Contenedor Principal del Juego -->
+    <div id="game-container" class="w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-6 md:p-10">
+
+        <!-- Encabezado y Contador -->
+        <header class="text-center mb-6 md:mb-8 border-b-4 border-indigo-500 pb-4">
+            <h1 class="text-3xl md:text-4xl font-black text-indigo-700">Desafío Matemático ECE</h1>
+            <p id="question-counter" class="text-xl text-gray-600 mt-2 font-bold">Situación 1 de 10</p>
+        </header>
+
+        <!-- Área de la Situación y Pregunta -->
+        <section id="situation-area" class="mb-8 p-4 bg-indigo-50 rounded-xl shadow-inner">
+            <div id="situation-illustration" class="text-center text-6xl mb-4"></div>
+            <p id="situation-text" class="text-lg md:text-xl text-gray-800 mb-4"></p>
+            <h2 id="question-text" class="text-2xl md:text-3xl font-extrabold text-indigo-900"></h2>
+        </section>
+
+        <!-- Zona de Drop/Respuesta -->
+        <section class="mb-8 flex flex-col items-center">
+            <p class="text-lg font-semibold text-gray-700 mb-3">Arrastra la respuesta correcta aquí:</p>
+            <div id="drop-zone" class="drop-zone w-full max-w-sm h-20 flex items-center justify-center p-3 rounded-xl bg-gray-100 text-lg text-gray-500 font-bold border-4 border-indigo-400">
+                Esperando respuesta...
+            </div>
+        </section>
+
+        <!-- Opciones a Arrastrar -->
+        <section id="options-container" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"></section>
+
+        <!-- Botones de Control (Ocultos al inicio) -->
+        <div id="control-buttons" class="flex justify-center space-x-4">
+            <button id="next-button" class="hidden px-6 py-3 bg-green-600 text-white font-bold text-xl rounded-lg shadow-lg hover:bg-green-700 transition duration-300 transform hover:scale-105">
+                Siguiente Pregunta
+            </button>
+        </div>
+
+        <!-- Modal de Retroalimentación (Mensajes flotantes) -->
+        <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-lg">
+                <h3 id="feedback-title" class="text-3xl font-black mb-4 text-center"></h3>
+                <p id="feedback-explanation" class="text-lg text-gray-700 mb-6"></p>
+                <div class="flex justify-center">
+                    <button id="close-feedback" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition duration-300">
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Resultados Finales -->
+        <div id="results-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-6 md:p-10 rounded-2xl shadow-2xl w-full max-w-2xl text-center">
+                <h3 class="text-4xl font-black mb-4 text-indigo-700">¡Juego Terminado!</h3>
+                <p class="text-xl text-gray-700 mb-6">Tu puntuación final es:</p>
+                <div id="final-score" class="text-6xl font-black text-green-600 mb-8"></div>
+                <button id="restart-button" class="px-8 py-4 bg-indigo-600 text-white font-bold text-xl rounded-lg shadow-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
+                    Volver a Jugar
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATOS DEL JUEGO (10 Situaciones ECE) ---
+        const quizData = [
+            {
+                id: 1,
+                illustration: "📚",
+                situation: "En una encuesta rápida, 30 estudiantes de 2do de secundaria registraron su asignatura favorita para el proyecto de la feria de ciencias. Los resultados incluyen: Química, Biología, Física y Matemáticas.",
+                question: "¿Cuál es el tipo de variable estadística que representa la asignatura favorita?",
+                options: ["Variable Cuantitativa Continua", "Variable Cuantitativa Discreta", "Variable Cualitativa Nominal", "Variable Cualitativa Ordinal"],
+                correctAnswer: "Variable Cualitativa Nominal",
+                explanation: "Es **Cualitativa Nominal** porque la asignatura es una cualidad (no un número) y no existe un orden o jerarquía natural entre las opciones (ninguna es 'mejor' que otra).",
+                topic: "Tipos de Variables"
+            },
+            {
+                id: 2,
+                illustration: "📊",
+                situation: "El director quiere saber el nivel de satisfacción de los estudiantes con los nuevos talleres. Les pide que respondan en una escala de 1 a 5: 1 (Muy insatisfecho) a 5 (Muy satisfecho).",
+                question: "¿Qué tipo de variable representa el nivel de satisfacción en esta escala?",
+                options: ["Variable Cuantitativa Continua", "Variable Cualitativa Nominal", "Variable Cuantitativa Discreta", "Variable Cualitativa Ordinal"],
+                correctAnswer: "Variable Cualitativa Ordinal",
+                explanation: "Es **Cualitativa Ordinal** porque aunque usa números, estos representan cualidades que sí tienen un orden o jerarquía (Muy insatisfecho < Muy satisfecho).",
+                topic: "Tipos de Variables"
+            },
+            {
+                id: 3,
+                illustration: "🏀",
+                situation: "En un torneo de baloncesto, un equipo jugó 5 partidos. Sus puntuaciones fueron: 65, 70, 58, 70, 77. El entrenador quiere saber el desempeño más común del equipo.",
+                question: "¿Cuál es la **Moda** de los puntajes obtenidos por el equipo?",
+                options: ["68.0", "70", "77", "65"],
+                correctAnswer: "70",
+                explanation: "La **Moda** es el valor que aparece con mayor frecuencia en el conjunto de datos. El puntaje 70 aparece dos veces, más que cualquier otro.",
+                topic: "Medidas de Tendencia Central (Moda)"
+            },
+            {
+                id: 4,
+                illustration: "💰",
+                situation: "Cinco amigos (A, B, C, D, E) tienen las siguientes cantidades de dinero de propina (en soles): A=15, B=25, C=10, D=30, E=20. Quieren repartirlo equitativamente 'a la mitad'.",
+                question: "¿Cuál es la **Mediana** de la cantidad de propina que tienen los cinco amigos?",
+                options: ["20", "22", "15", "25"],
+                correctAnswer: "20",
+                explanation: "Primero se ordenan los datos: 10, 15, **20**, 25, 30. La **Mediana** es el valor central de un conjunto de datos ordenados. En este caso es 20.",
+                topic: "Medidas de Tendencia Central (Mediana)"
+            },
+            {
+                id: 5,
+                illustration: "📝",
+                situation: "Un estudiante tiene las siguientes notas en su libreta: 12, 15, 18, 11, 14. Su promedio bimestral determinará su elegibilidad para una beca.",
+                question: "¿Cuál es la **Media Aritmética** (Promedio) de sus notas?",
+                options: ["14.5", "15", "14", "13.5"],
+                correctAnswer: "14",
+                explanation: "La **Media** (Promedio) se calcula sumando todos los valores (12+15+18+11+14 = 70) y dividiendo por la cantidad de valores (5). 70 / 5 = 14.",
+                topic: "Medidas de Tendencia Central (Media)"
+            },
+            {
+                id: 6,
+                illustration: "🔴",
+                situation: "En una caja hay 15 bolitas: 5 rojas, 6 azules y 4 verdes. Un estudiante, sin mirar, saca una bolita para un experimento.",
+                question: "¿Cuál es la probabilidad de sacar una bolita **Roja**, expresada como porcentaje?",
+                options: ["30.0%", "33.3%", "40.0%", "26.6%"],
+                correctAnswer: "33.3%",
+                explanation: "La Probabilidad (Regla de Laplace) es: Casos Favorables (5 rojas) / Casos Totales (15). 5/15 ≈ 0.3333. Expresado en porcentaje es 33.3%.",
+                topic: "Probabilidad (Regla de Laplace)"
+            },
+            {
+                id: 7,
+                illustration: "🎲",
+                situation: "Juan lanza un dado de seis caras numeradas del 1 al 6. Él está interesado en saber la probabilidad de un evento en particular.",
+                question: "¿Cuál es la probabilidad de que salga un número **par** (2, 4, o 6)?",
+                options: ["1/6", "1/2", "1/3", "2/3"],
+                correctAnswer: "1/2",
+                explanation: "Casos favorables (números pares: 3) / Casos totales (6). La probabilidad es 3/6, que se simplifica a 1/2.",
+                topic: "Probabilidad (Regla de Laplace)"
+            },
+            {
+                id: 8,
+                illustration: "📏",
+                situation: "Para un proyecto de ergonomía, un equipo mide la altura de todos los estudiantes de 2do de secundaria. Se obtienen valores como 1.65 m, 1.70 m, 1.58 m, etc.",
+                question: "¿Qué tipo de variable es la **altura** de los estudiantes?",
+                options: ["Variable Cuantitativa Discreta", "Variable Cualitativa Ordinal", "Variable Cuantitativa Continua", "Variable Cualitativa Nominal"],
+                correctAnswer: "Variable Cuantitativa Continua",
+                explanation: "Es **Cuantitativa Continua** porque la altura se mide y puede tomar cualquier valor dentro de un intervalo (por ejemplo, 1.65 m, 1.655 m, 1.6555 m).",
+                topic: "Tipos de Variables"
+            },
+            {
+                id: 9,
+                illustration: "🥅",
+                situation: "En un entrenamiento, Pedro realizó 40 lanzamientos a la portería. Anotó 28 goles. El entrenador calcula su 'frecuencia relativa de acierto'.",
+                question: "¿Cuál es la frecuencia relativa de acierto de Pedro expresada como porcentaje?",
+                options: ["28%", "60%", "70%", "72%"],
+                correctAnswer: "70%",
+                explanation: "La Frecuencia Relativa es: Goles anotados (28) / Total de lanzamientos (40). 28 / 40 = 0.7. Expresado en porcentaje es 70%.",
+                topic: "Probabilidad (Frecuencia Relativa)"
+            },
+            {
+                id: 10,
+                illustration: "📈",
+                situation: "Un histograma muestra la distribución de edades (en rangos) de los asistentes a un evento. La barra más alta corresponde al rango de '14 a 16 años'.",
+                question: "¿Qué medida de tendencia central está representada por la clase (rango) con la frecuencia más alta en el histograma?",
+                options: ["La Mediana", "La Media", "La Varianza", "La Moda"],
+                correctAnswer: "La Moda",
+                explanation: "En un histograma, la barra más alta (mayor frecuencia) indica el intervalo o clase que contiene a la **Moda** (el valor más común).",
+                topic: "Interpretación de Gráficos (Histograma)"
+            }
+        ];
+
+        // --- VARIABLES DE ESTADO DEL JUEGO ---
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isAnswered = false;
+        let db = null; // Variable para la base de datos (aunque el juego es offline, la mantengo por si se expande)
+        let userId = null; // ID de usuario
+
+        // --- REFERENCIAS DEL DOM ---
+        const gameContainer = document.getElementById('game-container');
+        const dropZone = document.getElementById('drop-zone');
+        const optionsContainer = document.getElementById('options-container');
+        const nextButton = document.getElementById('next-button');
+        const feedbackModal = document.getElementById('feedback-modal');
+        const resultsModal = document.getElementById('results-modal');
+
+        // --- FUNCIONES DE UTILIDAD ---
+
+        /**
+         * Inicializa el juego y configura los manejadores de eventos.
+         */
+        function initializeGame() {
+            currentQuestionIndex = 0;
+            score = 0;
+            isAnswered = false;
+
+            // Ocultar modales y mostrar contenedor principal
+            feedbackModal.classList.add('hidden');
+            resultsModal.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+
+            // Configurar Listeners
+            dropZone.addEventListener('dragover', handleDragOver);
+            dropZone.addEventListener('dragleave', handleDragLeave);
+            dropZone.addEventListener('drop', handleDrop);
+            nextButton.addEventListener('click', handleNextQuestion);
+            document.getElementById('close-feedback').addEventListener('click', closeFeedbackModal);
+            document.getElementById('restart-button').addEventListener('click', initializeGame);
+
+            renderQuestion();
+        }
+
+        /**
+         * Renderiza la pregunta actual y las opciones.
+         */
+        function renderQuestion() {
+            const data = quizData[currentQuestionIndex];
+
+            // 1. Actualizar contador
+            document.getElementById('question-counter').textContent = `Situación ${currentQuestionIndex + 1} de ${quizData.length}`;
+
+            // 2. Cargar textos
+            document.getElementById('situation-illustration').textContent = data.illustration;
+            document.getElementById('situation-text').textContent = data.situation;
+            document.getElementById('question-text').textContent = data.question;
+
+            // 3. Limpiar y resetear Drop Zone
+            dropZone.innerHTML = 'Esperando respuesta...';
+            dropZone.classList.remove('bg-green-100', 'bg-red-100', 'border-green-600', 'border-red-600');
+            dropZone.classList.add('bg-gray-100', 'border-indigo-400', 'text-gray-500');
+            dropZone.setAttribute('data-correct-answer', data.correctAnswer);
+            dropZone.setAttribute('data-explanation', data.explanation);
+
+            // 4. Limpiar y renderizar opciones
+            optionsContainer.innerHTML = '';
+            // Mezclar opciones para que no siempre estén en el mismo orden
+            const shuffledOptions = shuffleArray([...data.options]);
+
+            shuffledOptions.forEach(option => {
+                const card = document.createElement('div');
+                card.draggable = true;
+                card.textContent = option;
+                card.setAttribute('data-value', option);
+                card.classList.add(
+                    'drag-card', 'p-4', 'bg-indigo-600', 'text-white', 'text-center', 'font-bold',
+                    'rounded-xl', 'shadow-md', 'text-xl', 'hover:bg-indigo-700', 'flex', 'items-center', 'justify-center', 'h-24'
+                );
+
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+
+                optionsContainer.appendChild(card);
+            });
+
+            // Ocultar botón 'Siguiente'
+            nextButton.classList.add('hidden');
+            isAnswered = false;
+        }
+
+        /**
+         * Manejador de inicio de arrastre.
+         */
+        function handleDragStart(e) {
+            if (isAnswered) {
+                e.preventDefault(); // Evita arrastrar si ya se respondió
+                return;
+            }
+            e.dataTransfer.setData('text/plain', e.target.getAttribute('data-value'));
+            e.target.classList.add('dragging');
+        }
+
+        /**
+         * Manejador de fin de arrastre.
+         */
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+
+        /**
+         * Manejador de arrastre sobre la zona de drop.
+         */
+        function handleDragOver(e) {
+            e.preventDefault(); // Necesario para permitir el drop
+            if (!isAnswered) {
+                dropZone.classList.add('hovered');
+            }
+        }
+
+        /**
+         * Manejador de salida de la zona de drop.
+         */
+        function handleDragLeave(e) {
+            dropZone.classList.remove('hovered');
+        }
+
+        /**
+         * Manejador de drop en la zona de respuesta.
+         */
+        function handleDrop(e) {
+            e.preventDefault();
+            if (isAnswered) return;
+
+            dropZone.classList.remove('hovered');
+
+            const droppedValue = e.dataTransfer.getData('text/plain');
+            checkAnswer(droppedValue);
+
+            // Mostrar el valor en la zona de drop
+            dropZone.textContent = droppedValue;
+        }
+
+        /**
+         * Verifica la respuesta y proporciona retroalimentación.
+         * @param {string} droppedValue - La opción arrastrada por el estudiante.
+         */
+        function checkAnswer(droppedValue) {
+            isAnswered = true;
+            nextButton.classList.remove('hidden');
+
+            const correctAnswer = dropZone.getAttribute('data-correct-answer');
+            const explanation = dropZone.getAttribute('data-explanation');
+
+            let isCorrect = droppedValue === correctAnswer;
+
+            // Actualizar estilo y puntaje
+            dropZone.classList.remove('bg-gray-100', 'border-indigo-400', 'text-gray-500');
+
+            if (isCorrect) {
+                score++;
+                dropZone.classList.add('bg-green-100', 'border-green-600', 'text-green-700');
+                showFeedback('¡Respuesta Correcta! ✅', explanation, 'text-green-600');
+            } else {
+                dropZone.classList.add('bg-red-100', 'border-red-600', 'text-red-700');
+                showFeedback(
+                    '¡Respuesta Incorrecta! ❌',
+                    `La respuesta correcta era: **${correctAnswer}**.\n\n${explanation}`,
+                    'text-red-600'
+                );
+            }
+
+            // Deshabilitar arrastre de las tarjetas
+            optionsContainer.querySelectorAll('.drag-card').forEach(card => {
+                card.draggable = false;
+                card.style.cursor = 'default';
+                // Resaltar la respuesta correcta de color suave
+                if (card.getAttribute('data-value') === correctAnswer) {
+                    card.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                    card.classList.add('bg-green-400', 'text-gray-900', 'ring-4', 'ring-green-500');
+                }
+            });
+        }
+
+        /**
+         * Muestra el modal de retroalimentación.
+         */
+        function showFeedback(title, explanation, titleColorClass) {
+            document.getElementById('feedback-title').textContent = title;
+            document.getElementById('feedback-title').className = `text-3xl font-black mb-4 text-center ${titleColorClass}`;
+            document.getElementById('feedback-explanation').innerHTML = explanation.replace(/\n/g, '<br>'); // Permitir saltos de línea
+            feedbackModal.classList.remove('hidden');
+            feedbackModal.classList.add('flex');
+        }
+
+        /**
+         * Cierra el modal de retroalimentación.
+         */
+        function closeFeedbackModal() {
+            feedbackModal.classList.add('hidden');
+            feedbackModal.classList.remove('flex');
+        }
+
+        /**
+         * Pasa a la siguiente pregunta o muestra los resultados.
+         */
+        function handleNextQuestion() {
+            closeFeedbackModal();
+            currentQuestionIndex++;
+
+            if (currentQuestionIndex < quizData.length) {
+                renderQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        /**
+         * Muestra el modal de resultados finales.
+         */
+        function showResults() {
+            gameContainer.classList.add('hidden');
+            document.getElementById('final-score').textContent = `${score} / ${quizData.length}`;
+            resultsModal.classList.remove('hidden');
+            resultsModal.classList.add('flex');
+        }
+
+        /**
+         * Función de Fisher-Yates para mezclar un array (opciones).
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // --- INICIO DEL JUEGO AL CARGAR LA PÁGINA ---
+        window.onload = initializeGame;
+    </script>
+</body>
+</html>

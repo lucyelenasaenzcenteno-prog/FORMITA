@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Reto Matemático: Regularidad, Equivalencia y Cambio</title>
+    <!-- Incluimos la fuente Inter (o fallback a una sans-serif) y un reseteo básico para mejorar la estética -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        
+        :root {
+            --color-primary: #4f46e5; /* Indigo 600 */
+            --color-secondary: #fcd34d; /* Amber 300 */
+            --color-success: #10b981; /* Emerald 500 */
+            --color-error: #ef4444; /* Red 500 */
+            --color-bg: #f9fafb; /* Gray 50 */
+            --color-text: #1f2937; /* Gray 800 */
+            --border-radius-lg: 1rem;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 1000px;
+            background: white;
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--color-primary);
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            color: var(--color-primary);
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .scene-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background-color: #eef2ff; /* Indigo 50 */
+            border-radius: 0.75rem;
+        }
+        
+        @media (min-width: 768px) {
+            .scene-container {
+                grid-template-columns: 2fr 3fr;
+            }
+        }
+
+        .illustration-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .illustration-card h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--color-primary);
+            margin-bottom: 0.75rem;
+        }
+        
+        .illustration-card p {
+            font-size: 1rem;
+            white-space: pre-wrap; /* Mantiene saltos de línea en el texto */
+        }
+        
+        .question-card {
+            background-color: var(--color-primary);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* --- Drag & Drop Components --- */
+        .options-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .answer-card {
+            background-color: var(--color-secondary);
+            color: var(--color-text);
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: grab;
+            width: 100%;
+            max-width: 220px;
+            text-align: center;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 0 var(--color-secondary);
+            border: 2px solid #b45309; /* Amber 700 */
+        }
+        
+        .answer-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 var(--color-secondary);
+        }
+        
+        .answer-card:active {
+            cursor: grabbing;
+            transform: translateY(1px);
+            box-shadow: 0 3px 0 var(--color-secondary);
+        }
+
+        .drop-zone {
+            min-height: 80px;
+            background-color: #e0e7ff; /* Indigo 100 */
+            border: 3px dashed var(--color-primary);
+            border-radius: 0.75rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1rem;
+            font-style: italic;
+            color: #6366f1; /* Indigo 500 */
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            transition: background-color 0.3s;
+        }
+        
+        .drop-zone.drag-over {
+            background-color: #c7d2fe; /* Indigo 200 */
+            border-style: solid;
+        }
+        
+        /* Estilo para la tarjeta una vez colocada */
+        .drop-zone .answer-card {
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+            border: none;
+            width: auto;
+            max-width: none;
+        }
+
+        /* --- Feedback & Controls --- */
+        #feedback-area {
+            min-height: 70px;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .feedback-correct {
+            background-color: var(--color-success);
+            color: white;
+            box-shadow: 0 0 10px var(--color-success);
+        }
+
+        .feedback-incorrect {
+            background-color: var(--color-error);
+            color: white;
+            box-shadow: 0 0 10px var(--color-error);
+        }
+
+        .controls {
+            text-align: center;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.1s ease, background-color 0.3s;
+            box-shadow: 0 4px 0 #4338ca; /* Indigo 700 */
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background-color: #4338ca; /* Indigo 700 */
+        }
+        
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #4338ca;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* --- Score Modal --- */
+        #score-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 3rem;
+            border-radius: var(--border-radius-lg);
+            text-align: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .modal-content h2 {
+            color: var(--color-primary);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        
+        .modal-content p {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            font-weight: 600;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <header>
+            <h1>El Reto Matemático </h1>
+            <p>Segundo de Secundaria | Regularidad, Equivalencia y Cambio</p>
+            <p class="score-display">Puntuación: <span id="score-value">0</span> / <span id="total-questions">10</span></p>
+        </header>
+
+        <main id="game-main">
+            <!-- Área de la Situación/Escena -->
+            <div class="scene-container">
+                <div class="illustration-card">
+                    <h2 id="scene-title"></h2>
+                    <p id="illustration-text"></p>
+                </div>
+                <div class="question-card">
+                    <p id="question-text">Arrastra la respuesta correcta al recuadro de abajo.</p>
+                </div>
+            </div>
+
+            <!-- Área de Opciones Arrastrables -->
+            <div class="options-container" id="options-container">
+                <!-- Tarjetas de respuesta se cargarán aquí -->
+            </div>
+
+            <!-- Zona de Arrastre -->
+            <div id="drop-zone" class="drop-zone">
+                Arrastra la tarjeta con la respuesta aquí
+            </div>
+
+            <!-- Área de Retroalimentación -->
+            <div id="feedback-area">
+                <!-- Mensaje de retroalimentación se mostrará aquí -->
+            </div>
+
+            <!-- Controles del Juego -->
+            <div class="controls">
+                <button id="next-button" class="btn btn-primary" disabled>
+                    Siguiente Pregunta
+                </button>
+            </div>
+        </main>
+        
+        <!-- Modal de Puntuación Final -->
+        <div id="score-modal">
+            <div class="modal-content">
+                <h2>¡Juego Terminado!</h2>
+                <p>Tu puntuación final es: <span id="final-score"></span> / 10</p>
+                <button id="restart-button" class="btn btn-primary">
+                    Volver a Jugar
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATA DEL JUEGO (10 Preguntas) ---
+        const questions = [
+            // SCENE 1: Escuela/Cantina - Progresiones Aritméticas / Funciones Lineales
+            {
+                scene: "La Cantina Escolar (Progresión Aritmética)",
+                illustration: "Ana vende limonada. El primer día vendió 3 vasos. Cada día vende 2 vasos más que el anterior. (Día 1: 3, Día 2: 5, Día 3: 7...). ",
+                question: "¿Cuál es la expresión algebraica que representa la cantidad de vasos vendidos (V) en función del día (D)?",
+                options: ["V = 3D + 2", "V = 2D + 1", "V = 2D + 3", "V = D + 2"],
+                correct_answer_text: "V = 2D + 1",
+                feedback: "¡Correcto! La constante de cambio (pendiente) es 2 (vasos extra por día). Si D=1 (Día 1), V = 2(1) + 1 = 3. V = 2D + 1 representa la regla de formación de esta progresión aritmética."
+            },
+            {
+                scene: "Torneo de Voleibol (Función Lineal)",
+                illustration: "En un torneo de voleibol, cada victoria otorga 3 puntos. Si el equipo 'Los Halcones' tiene 2 puntos base por participación. ",
+                question: "¿Cuántos puntos (P) tendrán después de V victorias? (Función Afín vs Lineal)",
+                options: ["P = 3V", "P = 2V + 3", "P = 3V + 2", "P = 5V"],
+                correct_answer_text: "P = 3V + 2",
+                feedback: "¡Correcto! Es una Función Afín: 3 puntos por victoria (pendiente/constante de cambio) más 2 puntos iniciales (ordenada al origen). P = 3V + 2."
+            },
+            
+            // SCENE 2: Casa/Tareas - Proporcionalidad Directa e Inversa / Equivalencia
+            {
+                scene: "La Tarea de Matemáticas (Equivalencia)",
+                illustration: "Tu primo te pregunta: 'Tengo 5 canicas más de las que tiene Juan. Si entre los dos tenemos 21 canicas, ¿cuántas canicas tiene Juan (J)?' ",
+                question: "¿Cuál es la ecuación de equivalencia que permite encontrar las canicas de Juan?",
+                options: ["J + 5 = 21", "2J + 5 = 21", "2J = 21 + 5", "5J + J = 21"],
+                correct_answer_text: "2J + 5 = 21",
+                feedback: "¡Correcto! Si tú tienes J+5 y Juan tiene J, la suma es (J + 5) + J = 21. Esto se simplifica a 2J + 5 = 21."
+            },
+            {
+                scene: "Pintando la Casa (Proporcionalidad Inversa)",
+                illustration: "Dos pintores tardan 6 horas en pintar la fachada de la casa. Si el trabajo debe hacerse en 3 horas. ",
+                question: "¿Cuántos pintores (P) se necesitan en total? (Proporcionalidad Inversa)",
+                options: ["3 pintores", "4 pintores", "6 pintores", "8 pintores"],
+                correct_answer_text: "4 pintores",
+                feedback: "¡Correcto! Es Proporcionalidad Inversa (2 pintores * 6 horas = P * 3 horas). P = 12/3 = 4. Si se reduce el tiempo a la mitad, se duplica el número de pintores."
+            },
+            {
+                scene: "La Cuenta de Electricidad (Diferencia de Funciones)",
+                illustration: "La tarifa de luz es: cargo fijo de \$15 (Cuota Social) más \$2 por cada kilowatt-hora (K).",
+                question: "¿Cómo se clasifica esta función que determina el costo total (C)? (Lineal o Afín)",
+                options: ["Función Lineal", "Función Inversa", "Proporcionalidad Directa", "Función Afín"],
+                correct_answer_text: "Función Afín",
+                feedback: "¡Correcto! Es una Función Afín (C = 2K + 15) porque tiene una ordenada al origen (\$15) diferente de cero. Una Función Lineal simple pasa por (0,0)."
+            },
+            
+            // SCENE 3: Parque/Deportes - Interpretación Gráfica / Proporcionalidad
+            {
+                scene: "Carrera en el Parque (Constante de Cambio)",
+                illustration: "Dos amigos corren en línea recta. Juan comienza en el km 1 y corre a 5 km/h. Pedro comienza en el km 0 y corre a 6 km/h. ",
+                question: "¿Quién tiene la mayor constante de cambio (pendiente) en la gráfica Distancia vs Tiempo?",
+                options: ["Juan", "Pedro", "Ambos tienen la misma", "Depende de la distancia final"],
+                correct_answer_text: "Pedro",
+                feedback: "¡Correcto! Pedro corre a 6 km/h, que es mayor que 5 km/h de Juan. La constante de cambio o pendiente de una función lineal (o afín) representa la velocidad o tasa de variación."
+            },
+            {
+                scene: "Venta de Boletos (Proporcionalidad Directa)",
+                illustration: "Se venden boletos para una rifa. 3 boletos cuestan \$24. ",
+                question: "¿Cuánto costarán 7 boletos?",
+                options: ["\$48", "\$56", "\$64", "\$72"],
+                correct_answer_text: "$56",
+                feedback: "¡Correcto! Es Proporcionalidad Directa. El costo por boleto es \$24 / 3 = \$8. Entonces, 7 boletos * \$8/boleto = \$56."
+            },
+            {
+                scene: "Pista de Bicicletas (Interpretación Gráfica)",
+                illustration: "Observa la gráfica: Si la línea de una gráfica Distancia vs Tiempo es completamente horizontal (recta paralela al eje X). ",
+                question: "¿Qué representa una pendiente cero en una gráfica de Distancia vs Tiempo?",
+                options: ["Velocidad constante alta", "Aceleración", "Estar detenido", "Velocidad negativa"],
+                correct_answer_text: "Estar detenido",
+                feedback: "¡Correcto! Una pendiente cero significa que la distancia no cambia con el tiempo, es decir, el ciclista está detenido o en reposo."
+            },
+            
+            // SCENE 4 (Combinada)
+            {
+                scene: "Cálculo de Ahorros (Suma de Progresión)",
+                illustration: "Ahorras \$50 el primer mes, y cada mes ahorras \$10 más que el anterior. Si haces esto por 4 meses.",
+                question: "¿Cuánto dinero total (Suma) habrás ahorrado en 4 meses?",
+                options: ["\$200", "\$260", "\$280", "\$240"],
+                correct_answer_text: "$260",
+                feedback: "¡Correcto! Los ahorros son: M1: \$50, M2: \$60, M3: \$70, M4: \$80. La suma total es \$50 + \$60 + \$70 + \$80 = \$260."
+            },
+            {
+                scene: "Regla de Patrón (Lenguaje Algebraico)",
+                illustration: "Observa la secuencia de figuras: Figura 1 tiene 5 palitos, Figura 2 tiene 8 palitos, Figura 3 tiene 11 palitos... (Aumenta de 3 en 3).",
+                question: "¿Cuántos palitos tendrá la Figura N (F)?",
+                options: ["F = 3N + 2", "F = 5N", "F = 2N + 3", "F = 3N - 2"],
+                correct_answer_text: "F = 3N + 2",
+                feedback: "¡Correcto! La diferencia constante es 3. La regla es F = 3N + b. Para N=1, 5 = 3(1) + b, por lo tanto, b=2. La regla es F = 3N + 2."
+            }
+        ];
+
+        // --- VARIABLES DE ESTADO ---
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isQuestionAnswered = false;
+        const totalQuestions = questions.length;
+
+        // --- REFERENCIAS DEL DOM ---
+        const sceneTitleEl = document.getElementById('scene-title');
+        const illustrationTextEl = document.getElementById('illustration-text');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainerEl = document.getElementById('options-container');
+        const dropZoneEl = document.getElementById('drop-zone');
+        const feedbackAreaEl = document.getElementById('feedback-area');
+        const nextButton = document.getElementById('next-button');
+        const scoreValueEl = document.getElementById('score-value');
+        const scoreModal = document.getElementById('score-modal');
+        const finalScoreEl = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+
+        // --- LÓGICA DEL DRAG AND DROP ---
+        
+        // Manejador al iniciar el arrastre
+        function handleDragStart(e) {
+            if (isQuestionAnswered) return;
+            e.dataTransfer.setData('text/plain', e.target.id);
+            e.target.classList.add('dragging');
+        }
+
+        // Manejador sobre la zona de soltar (Drop Zone)
+        function handleDragOver(e) {
+            e.preventDefault(); // Necesario para permitir el drop
+            if (isQuestionAnswered) return;
+            dropZoneEl.classList.add('drag-over');
+        }
+        
+        // Manejador al salir de la zona de soltar
+        function handleDragLeave(e) {
+            dropZoneEl.classList.remove('drag-over');
+        }
+
+        // Manejador al soltar
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZoneEl.classList.remove('drag-over');
+            
+            if (isQuestionAnswered) return;
+
+            const draggedId = e.dataTransfer.getData('text/plain');
+            const draggedElement = document.getElementById(draggedId);
+
+            // Solo si la zona de drop está vacía, permite el drop
+            if (dropZoneEl.childElementCount === 0) {
+                dropZoneEl.innerHTML = ''; // Limpia el texto de placeholder
+                dropZoneEl.appendChild(draggedElement);
+                draggedElement.classList.remove('dragging');
+                draggedElement.style.margin = '0'; // Asegura que se centre bien
+                
+                checkAnswer(draggedElement.textContent);
+            }
+        }
+        
+        // --- LÓGICA DEL JUEGO ---
+
+        // Función para cargar la pregunta actual
+        function loadQuestion() {
+            if (currentQuestionIndex >= totalQuestions) {
+                showFinalScore();
+                return;
+            }
+
+            const q = questions[currentQuestionIndex];
+            
+            // 1. Resetear el estado
+            isQuestionAnswered = false;
+            feedbackAreaEl.className = '';
+            feedbackAreaEl.textContent = '';
+            nextButton.disabled = true;
+            dropZoneEl.innerHTML = 'Arrastra la tarjeta con la respuesta aquí';
+            dropZoneEl.classList.remove('feedback-correct', 'feedback-incorrect');
+            
+            // 2. Actualizar textos de la UI
+            sceneTitleEl.textContent = `Escena ${currentQuestionIndex + 1} / ${totalQuestions}: ${q.scene}`;
+            illustrationTextEl.textContent = q.illustration;
+            questionTextEl.textContent = q.question;
+            scoreValueEl.textContent = score;
+
+            // 3. Crear y mezclar las opciones
+            optionsContainerEl.innerHTML = '';
+            const shuffledOptions = shuffleArray([...q.options]);
+
+            shuffledOptions.forEach((optionText, index) => {
+                const card = document.createElement('div');
+                card.id = `option-${currentQuestionIndex}-${index}`; // ID único
+                card.className = 'answer-card';
+                card.textContent = optionText;
+                card.setAttribute('draggable', true);
+                
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', (e) => e.target.classList.remove('dragging'));
+                
+                optionsContainerEl.appendChild(card);
+            });
+        }
+
+        // Función para verificar la respuesta
+        function checkAnswer(selectedAnswer) {
+            if (isQuestionAnswered) return;
+            
+            const q = questions[currentQuestionIndex];
+            const isCorrect = selectedAnswer.trim() === q.correct_answer_text.trim();
+            
+            isQuestionAnswered = true;
+            nextButton.disabled = false;
+            
+            // Actualizar feedback
+            feedbackAreaEl.textContent = isCorrect 
+                ? `¡Respuesta Correcta! ${q.feedback}`
+                : `Respuesta Incorrecta. La respuesta correcta era: ${q.correct_answer_text}. Explicación: ${q.feedback}`;
+            
+            feedbackAreaEl.classList.add(isCorrect ? 'feedback-correct' : 'feedback-incorrect');
+
+            // Actualizar puntuación
+            if (isCorrect) {
+                score++;
+                scoreValueEl.textContent = score;
+            }
+            
+            // Desactivar el arrastre y soltar para esta pregunta
+            dropZoneEl.removeEventListener('dragover', handleDragOver);
+            dropZoneEl.removeEventListener('drop', handleDrop);
+            Array.from(optionsContainerEl.children).forEach(card => card.setAttribute('draggable', false));
+        }
+
+        // Función para pasar a la siguiente pregunta
+        function nextQuestion() {
+            // Re-activar el arrastre y soltar para la próxima pregunta
+            dropZoneEl.addEventListener('dragover', handleDragOver);
+            dropZoneEl.addEventListener('dragleave', handleDragLeave);
+            dropZoneEl.addEventListener('drop', handleDrop);
+            
+            currentQuestionIndex++;
+            loadQuestion();
+        }
+        
+        // Función para mostrar la puntuación final
+        function showFinalScore() {
+            finalScoreEl.textContent = score;
+            scoreModal.style.display = 'flex';
+        }
+        
+        // Función para reiniciar el juego
+        function restartGame() {
+            currentQuestionIndex = 0;
+            score = 0;
+            scoreModal.style.display = 'none';
+            init(); // Reinicializa el juego
+        }
+
+        // Función utilitaria para mezclar un array (Algoritmo Fisher-Yates)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // --- INICIALIZACIÓN ---
+        function init() {
+            // Configurar Listeners iniciales
+            dropZoneEl.addEventListener('dragover', handleDragOver);
+            dropZoneEl.addEventListener('dragleave', handleDragLeave);
+            dropZoneEl.addEventListener('drop', handleDrop);
+            
+            nextButton.addEventListener('click', nextQuestion);
+            restartButton.addEventListener('click', restartGame);
+
+            // Asegurar que el total de preguntas se muestre
+            document.getElementById('total-questions').textContent = totalQuestions;
+            
+            // Cargar la primera pregunta
+            loadQuestion();
+        }
+
+        // Iniciar el juego al cargar la ventana
+        window.onload = init;
+
+    </script>
+</body>
+</html>
